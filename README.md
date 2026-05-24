@@ -25,9 +25,13 @@ El proyecto implementa un flujo reactivo completo basado en:
 
 ```typescript
 readonly budget = signal(2000);           // Presupuesto total
-readonly expenses = signal<number[]>([120, 75]); // Array de gastos
+readonly expenses = signal<ExpenseEntry[]>([
+  { amount: 120, reason: 'Gasto inicial' },
+  { amount: 75, reason: 'Gasto inicial' },
+]); // Array de gastos con motivo
 readonly threshold = signal(80);          // Umbral de alerta (%)
 readonly expenseInput = signal(0);        // Input temporal
+readonly expenseReasonInput = signal(''); // Motivo temporal
 ```
 
 **Comportamiento:** Estas notifican solo a sus dependientes cuando cambian, no al componente entero.
@@ -36,7 +40,7 @@ readonly expenseInput = signal(0);        // Input temporal
 
 ```typescript
 readonly totalSpent = computed(() =>
-  this.expenses().reduce((sum, value) => sum + value, 0)
+  this.expenses().reduce((sum, entry) => sum + entry.amount, 0)
 );
 
 readonly remaining = computed(() =>
@@ -50,12 +54,19 @@ readonly usagePercent = computed(() => {
   return Math.min(100, Math.max(0, percent));
 });
 
+readonly criticalPercent = computed(() => {
+  const threshold = this.threshold();
+  const midpointToLimit = threshold + (100 - threshold) * 0.5;
+  return Math.min(100, Math.max(0, midpointToLimit));
+});
+
 readonly alertLevel = computed(() => {
   const percent = this.usagePercent();
-  const threshold = this.threshold();
+  const warningThreshold = this.threshold();
+  const criticalThreshold = this.criticalPercent();
 
-  if (percent >= 100) return 'critical';
-  if (percent >= threshold) return 'warning';
+  if (percent >= criticalThreshold) return 'critical';
+  if (percent >= warningThreshold) return 'warning';
   return 'safe';
 });
 ```
@@ -79,6 +90,7 @@ readonly logEffect = effect(() => {
 - `onBudgetInput(event)` - Valida y actualiza presupuesto
 - `onThresholdInput(event)` - Normaliza umbral entre 0-100%
 - `onExpenseInput(event)` - Recibe entrada de gasto temporal
+- `onExpenseReasonInput(event)` - Recibe motivo del gasto
 - `addExpense()` - Agrega gasto al array y resetea input
 
 ---
@@ -105,7 +117,8 @@ Inputs para manipular las señales primitivas:
 
 - **Presupuesto total** → modifica `budget`
 - **Umbral de alerta** → modifica `threshold` (0-100%)
-- **Agregar gasto** → agrega valores a `expenses` y recalcula
+- **Motivo del gasto** → modifica `expenseReasonInput`
+- **Agregar gasto** → agrega objetos `{ amount, reason }` a `expenses` y recalcula
 
 ### Panel Métricas
 
@@ -126,7 +139,7 @@ Usa sintaxis moderna de Angular:
 } @else {
 <ul>
   @for (expense of expenses(); track $index) {
-  <li>{{ expense.toFixed(2) }}</li>
+  <li>{{ expense.reason }} - {{ expense.amount.toFixed(2) }}</li>
   }
 </ul>
 }
@@ -180,7 +193,8 @@ Estado:       🟢 SAFE (por debajo del 80%)
 3. **Se recalculan en cascada:**
    - `remaining` → 5000 - 195 = 4805
    - `usagePercent` → (195/5000)\*100 = 3.9%
-   - `alertLevel` → retorna 'safe'
+   - `criticalPercent` → punto medio entre el umbral y 100%
+   - `alertLevel` → retorna `safe`, `warning` o `critical` según rango
 4. **Effect se ejecuta** → logs en consola del navegador
 5. **DOM se actualiza** → solo los valores afectados cambian (sin dirty-checking)
 
