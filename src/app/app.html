@@ -39,6 +39,12 @@
 
       <div class="field">
         <span>Agregar gasto</span>
+        <input
+          type="text"
+          placeholder="Motivo del gasto"
+          [value]="expenseReasonInput()"
+          (input)="onExpenseReasonInput($event)"
+        />
         <div class="inline">
           <input
             type="number"
@@ -81,7 +87,7 @@
         </div>
         <div class="progress-meta">
           <span>{{ usagePercent().toFixed(0) }}%</span>
-          <span>Umbral {{ threshold() }}%</span>
+          <span>Umbral {{ threshold() }}% | Critico {{ criticalPercent().toFixed(0) }}%</span>
         </div>
       </div>
     </div>
@@ -94,8 +100,8 @@
         <ul class="expense-list">
           @for (expense of expenses(); track $index) {
             <li>
-              <span>Gasto #{{ $index + 1 }}</span>
-              <strong>{{ expense.toFixed(2) }}</strong>
+              <span>Gasto #{{ $index + 1 }} - {{ expense.reason }}</span>
+              <strong>{{ expense.amount.toFixed(2) }}</strong>
             </li>
           }
         </ul>
